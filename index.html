@@ -1,0 +1,529 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>reveal.js</title>
+
+		<link rel="stylesheet" href="css/reveal.css">
+		<link rel="stylesheet" href="css/theme/black.css">
+
+		<!-- Theme used for syntax highlighting of code -->
+		<link rel="stylesheet" href="lib/css/zenburn.css">
+
+		<!-- Printing and PDF exports -->
+		<script>
+			var link = document.createElement( 'link' );
+			link.rel = 'stylesheet';
+			link.type = 'text/css';
+			link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+			document.getElementsByTagName( 'head' )[0].appendChild( link );
+		</script>
+
+      <style>
+      .reveal pre {
+        width: 99%;
+      }
+     </style>
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+				<section>
+          <h1>Angular Testing</h1>
+        </section>
+				<section>
+          <h2>The test Pyramid</h2>
+
+          <style>
+
+            .test-pyramid .e2e {
+              margin-left: auto;
+              margin-right: auto;
+              width: 300px;
+              background-color: #fdbb2d;
+            }
+            .test-pyramid .integration {
+              margin-left: auto;
+              margin-right: auto;
+              width: 600px;
+              background-color: #b21f1f;
+            }
+            .test-pyramid .unit {
+              margin-left: auto;
+              margin-right: auto;
+              width: 900px;
+              background-color: #1a2a6c;
+            }
+            .test-pyramid .qa {
+              margin-left: auto;
+              margin-right: auto;
+              background-color:rgb(250,70,100);
+              width: 900px;
+              height: 0;
+            }
+
+            .reveal .slides section .fragment.test-pyramid {
+              opacity: 1;
+              visibility: inherit;
+
+            }
+            .reveal .slides section .fragment.test-pyramid div {
+              transition: all 0.5s ease;
+              overflow:hidden;
+            }
+            .reveal .slides section .fragment.test-pyramid.visible  .qa {
+                height: 50px;
+            }
+            .reveal .slides section .fragment.test-pyramid.visible  .e2e {
+                width: 700px;
+            }
+            .reveal .slides section .fragment.test-pyramid.visible  .integration {
+              width: 50px;
+            }
+            .reveal .slides section .fragment.test-pyramid.visible  .unit {
+              width: 750px;
+            }
+          </style>
+
+          <div class="test-pyramid fragment">
+            <div class="qa">QA</div>
+            <div class="e2e">End to End (E2E)</div>
+            <div class="integration">Integration</div>
+            <div class="unit">Unit</div>
+          </div>
+        </section>
+
+
+
+        <section>
+          <section>
+            <h2>Testing Services</h2>
+            <h3> with no dependencies</h3>
+            <pre><code data-trim class="typescript">
+//file cheese.service.ts
+type Reblochon = 'reblochon';
+@Injectable()
+export class CheeseService {
+  getReblochon(): Reblochon {
+    return 'reblochon';
+  }
+}
+            </code></pre>
+
+           </section>
+           <section>
+             <h3>use <code>new</code>!</h3>
+             <pre><code data-trim class="typescript">
+               //file cheese.service.spec.ts
+               describe('CheeseService', () => {
+                   describe('.getReblochon()', () => {
+                       it('should return a reblochon', () => {
+                           const service = new CheeseService();
+                           expect(service.getReblochon()).toBe('reblochon');
+                       });
+                   });
+               });
+             </code></pre>
+           </section>
+           <section>
+             <h3>Or convert to helpers...</h3>
+             <pre><code data-trim class="typescript">
+//file cheese.helpers.ts
+type Reblochon = 'reblochon';
+export function getReblochon(): Reblochon {
+    return 'reblochon';
+}
+
+//file cheese.helpers.spec.ts
+describe('.getReblochon()', () => {
+    it('should return a reblochon', () => {
+        expect(getReblochon()).toBe('reblochon');
+    });
+});
+
+             </code></pre>
+           </section>
+        </section>
+
+        <section>
+          <section>
+            <h2>Testing Services - HttpClient</h2>
+            <pre><code data-trim class="typescript">
+  export type Potato = string;
+
+  @Injectable()
+  export class PotatoesService {
+      constructor(private http: HttpClient) {
+      }
+
+      getPotatoes(): Observable&lt;Array&lt;Potato>> {
+          return this.http.get('/potatoes');
+      }
+  }
+            </code></pre>
+          </section>
+          <section class="service-with-http">
+            <h3>Test bed</h3>
+            <pre><code data-trim class="typescript">
+              let httpTestingController: HttpTestingController;
+              beforeEach(() => {
+                  TestBed.configureTestingModule({
+                      imports: [HttpClientTestingModule],
+                      providers: [PotatoesService]
+                  });
+                  httpTestingController = TestBed.get(HttpTestingController);
+              });
+              afterEach(() => {
+                  httpTestingController.verify();
+              });
+            </code></pre>
+            <aside class="notes">
+              <ul>
+                <li>Test Bed starts angular</li>
+                <li>Which modules to import?</li>
+                <li>Don't forget to verify</li>
+              </ul>
+            </aside>
+
+          </section>
+          <section>
+            <h3>Async version</h3>
+            <pre><code data-trim class="typescript">
+it('should return the potatoes from server', (done) => {
+  const service: PotatoesService = TestBed.get(PotatoesService);
+  const expectedPotatoes = ['potato1', 'potato2'];
+  service.getPotatoes().subscribe((potatoes) => {
+      expect(potatoes).toEqual(expectedPotatoes);
+      done();
+  }, (e) => {
+      fail(e);
+      done();
+  });
+  const req = httpTestingController.expectOne('/potatoes');
+  expect(req.request.method).toEqual('GET');
+  req.flush(expectedPotatoes);
+});
+
+            </code></pre>
+            <aside class="notes">
+              <ul>
+                <li>Don't forget to fail on Observable failure</li>
+                <li>Done!</li>
+              </ul>
+            </aside>
+          </section>
+
+          <section>
+            <h3>Sync version</h3>
+            <pre><code data-trim class="typescript">
+        it('should return the potatoes from server - sync', () => {
+            const service: PotatoesService = TestBed.get(PotatoesService);
+
+            const expectedPotatoes = ['potato1', 'potato2'];
+            let potatoes: Array&lt;Potato>;
+            service.getPotatoes().subscribe((httpPotatoes) => {
+                potatoes = httpPotatoes
+            }, (e) => { fail(e); });
+            const req = httpTestingController.expectOne('/potatoes');
+            expect(req.request.method).toEqual('GET');
+            req.flush(expectedPotatoes);
+            expect(potatoes).toEqual(expectedPotatoes);
+        })
+            </code></pre>
+          </section>
+        </section>
+
+        <section>
+          <img src="images/spectator.png" style="background:white"/>
+          https://netbasal.gitbooks.io/spectator/
+        </section>
+
+        <section>
+            <pre><code data-trim class="typescript" style="font-size:95%">
+const http = createHTTPFactory&lt;PotatoesService>(PotatoesService);
+
+it('should return the potatoes from server', (done) => {
+  const {dataService, expectOne } = http();
+  const expectedPotatoes = ['potato1', 'potato2'];
+  dataService.getPotatoes().subscribe((potatoes) => {
+     expect(potatoes).toEqual(expectedPotatoes);
+     done();
+  }, (e) => {
+     fail(e);
+     done();
+  });
+  expectOne('/potatoes', HTTPMethod.GET).flush(expectedPotatoes);
+});
+            </code></pre>
+        </section>
+
+        <section>
+          <section>
+            <h2>Services - with dependencies</h2>
+            <h3>Mocking</h3>
+            <pre><code data-trim class="typescript">
+export type Tartiflette = {
+  potatoes: Array&lt;Potato>,
+  reblochon: Reblochon
+};
+@Injectable()
+export class TartifletteService {
+  constructor(private cheeseService: CheeseService,
+              private potatoesService: PotatoesService) {
+  }
+}
+            </code></pre>
+
+        </section>
+        <section>
+          <pre><code data-trim class="typescript">
+  cook(): Observable&lt;Tartiflette> {
+    return this.potatoesService.getPotatoes().pipe(
+      map((potatoes) => ({
+            potatoes,
+            reblochon: this.cheeseService.getReblochon()
+        })
+      )
+    );
+  }
+          </code></pre>
+        </section>
+
+        <section>
+          <h3>Test</h3>
+          <pre><code data-trim class="typescript">
+    const spectator = createService({
+        service: TartifletteService,
+        mocks: [PotatoesService],
+        providers: [{
+            provide: CheeseService, useValue: {
+                getReblochon() {
+                    return 'cheddar';
+                }
+            }
+        }],
+    });
+          </code></pre>
+
+        </section>
+
+
+        <section>
+          <pre><code data-trim class="typescript">
+    it('should cook a tartiflette', (done) => {
+      const service = spectator.service;
+      const expectedTartiflette = {
+        potatoes: ['potato1', 'potato2'], reblochon: 'cheddar'
+      };
+      const potatoesService = spectator.get&lt;PotatoesService>(PotatoesService);
+      potatoesService.getPotatoes.and.returnValue(of(expectedTartiflette.potatoes));
+      service.cook().subscribe((tartiflette) => {
+          expect(tartiflette as any).toEqual(expectedTartiflette);
+          done();
+      }, (e) => {
+          fail(e);
+          done();
+      });
+    });
+          </code></pre>
+          <aside class="notes">
+            <ul>
+              <li>Multiple ways to mock -> jasmine or manual</li>
+            </ul>
+          </aside>
+        </section>
+
+        </section>
+
+        <section>
+          <h2>Testing components</h2>
+          <section>
+          <pre><code data-trim class="typescript">
+@Component({
+  selector: 'tartiflette',
+  template: `
+   &lt;p *ngIf="tartiflette" class="tartiflette">{{tartiflette}}&lt;/p>
+   &lt;input type="button" value="cook!" (click)="cook.emit()"/>`,
+})
+export class TartifletteComponent {
+    @Input()
+    public tartiflette: Tartiflette;
+    @Output()
+    public cook: EventEmitter&lt;void> = new EventEmitter();
+}
+          </code></pre>
+        </section>
+        <section>
+          <pre><code data-trim class="typescript">
+@Component({
+    selector: 'tartiflette-container',
+    template: `
+        &lt;tartiflette [tartiflette]="tartiflette$ | async"
+                     (cook)="cook()">
+        &lt;/tartiflette>`
+})
+export class TartifletteContainer {
+    public tartiflette$: Subject&lt;Tartiflette> = new Subject();
+
+    constructor(
+      private tartifletteService: TartifletteService
+    ) {
+    }
+
+    cook() {
+        this.tartifletteService.cook().subscribe(this.tartiflette$);
+    }
+}
+          </code></pre>
+        </section>
+        <section>
+          <pre><code data-trim class="typescript">
+    const cook$: Subject&lt;Tartiflette> = new Subject();
+    const createComponent = createTestComponentFactory({
+        component: TartifletteContainer,
+        providers: [{
+            provide: TartifletteService, useValue: {
+                cook: () => cook$
+            }
+        }],
+        declarations: [TartifletteComponent],
+    });
+          </code></pre>
+          <aside class="notes">
+            <ul>
+              <li>mocking observable with subject</li>
+              <li>detectChanges</li>
+            </ul>
+          </aside>
+        </section>
+
+        <section>
+          <pre><code data-trim class="typescript">
+    it('should display a tartiflette when cooked', () => {
+        const spectator = createComponent();
+        expect('.tartiflette').not.toExist();
+        spectator.click('input');
+        expect('.tartiflette').not.toExist();
+        cook$.next({potatoes: [], reblochon: 'reblochon'});
+        spectator.detectChanges();
+        expect('.tartiflette').toExist();
+    });
+          </code></pre>
+          <aside class="notes">
+            <ul>
+              <li>mocking observable with subject</li>
+              <li>detectChanges</li>
+            </ul>
+          </aside>
+        </section>
+
+        <section>
+          <h3>Lots of usefull custom matchers!</h3>
+          <a href="https://netbasal.gitbooks.io/spectator/matchers.html">https://netbasal.gitbooks.io/spectator/matchers.html</a>
+          <ul>
+            <li><code>toExist</code></li>
+            <li><code>toHaveLength</code></li>
+            <li><code>toBeVisible</code></li>
+            <li>etc.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h3>Using a host</h3>
+          <pre><code data-trim class="typescript" style="font-size:90%">
+type HostProps = { tartiflette: Tartiflette };
+const host = createHostComponentFactory&lt;TartifletteComponent, HostProps>(
+  TartifletteComponent);
+it('should display a tartiflette if there is one', () => {
+  const spectator = host(`
+    &lt;tartiflette [tartiflette]="tartiflette">&lt;/tartiflette>`);
+  expect('.tartiflette').not.toExist();
+  spectator.hostComponent.tartiflette = {
+    potatoes: [], reblochon: 'reblochon' };
+  spectator.detectChanges();
+  expect('.tartiflette').toExist();
+});
+
+          </code></pre>
+        </section>
+        </section>
+
+        <section>
+
+          <section>
+            <h2>Testing Observables</h2>
+
+            <pre><code data-trim class="typescript">
+@Injectable()
+export class VinaiService {
+    constructor(private tartifletteService: TartifletteService) { }
+
+    eat() {
+        interval(2000).map(() => {
+            this.tartifletteService.cook();
+        }).subscribe((tartiflette) => {
+          console.log('eat', tartiflette)
+        });
+    }
+}
+            </code></pre>
+          </section>
+          <section>
+            <h3>fakeAsync</h3>
+            <pre><code data-trim class="typescript">
+const spectator = createService({
+   service: VinaiService,
+   mocks: [TartifletteService],
+});
+
+it('should eat every 2 seconds', fakeAsync(() => {
+   console.log = jasmine.createSpy("log");
+   spectator.service.eat();
+   tick(3000);
+   expect(console.log).toHaveBeenCalledTimes(1);
+   tick(3001);
+   expect(console.log).toHaveBeenCalledTimes(3);
+   discardPeriodicTasks();
+}));
+</code></pre>
+          </section>
+
+        </section>
+
+        <section>
+          <h2>Testing Angular/Angular JS mix</h2>
+          <div class="fragment">
+            <h3 >Don't.</h3>
+            <span>It doesn't work and errors are cryptic.</span>
+          </div>
+        </section>
+
+        <section>
+          <h2>Help reverse the pyramid</h2>
+          <img src="images/pyramid-inverted.jpg" />
+        </section>
+			</div>
+		</div>
+
+		<script src="lib/js/head.min.js"></script>
+		<script src="js/reveal.js"></script>
+
+		<script>
+			// More info about config & dependencies:
+			// - https://github.com/hakimel/reveal.js#configuration
+			// - https://github.com/hakimel/reveal.js#dependencies
+			Reveal.initialize({
+        slideNumber: true,
+        history: true,
+				dependencies: [
+					{ src: 'plugin/markdown/marked.js' },
+					{ src: 'plugin/markdown/markdown.js' },
+					{ src: 'plugin/notes/notes.js', async: true },
+					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
+				]
+			});
+		</script>
+	</body>
+</html>
